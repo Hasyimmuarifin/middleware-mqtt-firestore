@@ -1,5 +1,8 @@
+require("dotenv").config();
+
 const mqtt = require("mqtt");
 const admin = require("firebase-admin");
+const fs = require("fs");
 
 // ================= FIREBASE =================
 const serviceAccount = require("./serviceAccountKey.json");
@@ -11,20 +14,18 @@ admin.initializeApp({
 const db = admin.firestore();
 
 // ================= MQTT =================
-const options = {
-  host: "a8805b4f45744c3f9ac83882e423e0c0.s1.eu.hivemq.cloud",
-  port: 8883,
+const client = mqtt.connect({
+  host: process.env.MQTT_HOST,
+  port: process.env.MQTT_PORT,
   protocol: "mqtts",
-  username: "hasyim",
-  password: "hasyimHiveMQTT#22"
-};
-
-const client = mqtt.connect(options);
+  username: process.env.MQTT_USER,
+  password: process.env.MQTT_PASS,
+});
 
 client.on("connect", () => {
   console.log("✅ MQTT Connected");
 
-  client.subscribe("nutrixense/sensor", (err) => {
+  client.subscribe(process.env.MQTT_TOPIC, (err) => {
     if (!err) {
       console.log("✅ Subscribe Success");
     }
@@ -37,7 +38,6 @@ client.on("message", async (topic, message) => {
   try {
 
     const data = JSON.parse(message.toString());
-
     console.log("📥 Data Received:", data);
 
     // Tambahkan timestamp
@@ -45,13 +45,9 @@ client.on("message", async (topic, message) => {
 
     // Save to Firestore
     await db.collection("sensor_data").add(data);
-
-    console.log("🔥 Saved to Firestore");
+    console.log("🔥 Saved to Firestore", data);
 
   } catch (err) {
-
     console.error("❌ Error:", err);
-
   }
-
 });
