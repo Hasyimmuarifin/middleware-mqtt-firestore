@@ -1,5 +1,7 @@
 const mqtt = require("mqtt");
 const admin = require("firebase-admin");
+let lastSavedTime = 0;
+const MIN_INTERVAL = 60 * 1000; // 1 menit
 
 // ================= FIREBASE =================
 const serviceAccount = require("./serviceAccountKey.json");
@@ -33,8 +35,14 @@ client.on("connect", () => {
 
 // ================= RECEIVE MQTT =================
 client.on("message", async (topic, message) => {
-
   try {
+    const now = Date.now();
+
+    // ================= RATE LIMIT 1 MENIT =================
+    if (now - lastSavedTime < MIN_INTERVAL) {
+      console.log("⏳ Data ignored (rate limit 1 menit)");
+      return;
+    }
 
     const data = JSON.parse(message.toString());
 
@@ -46,12 +54,11 @@ client.on("message", async (topic, message) => {
     // Save to Firestore
     await db.collection("sensor_data").add(data);
 
+    lastSavedTime = now; // update waktu terakhir simpan
+
     console.log("🔥 Saved to Firestore");
 
   } catch (err) {
-
     console.error("❌ Error:", err);
-
   }
-
 });
